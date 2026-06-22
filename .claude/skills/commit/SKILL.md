@@ -57,4 +57,4 @@ docs: document branch naming and Conventional Commits
 - Match the type to the change; when a commit spans types, it's usually two commits.
 - Don't commit secrets, `.env` files, or generated artifacts that should be git-ignored.
 - If pre-commit hooks modify files during the commit, re-stage and retry.
-- When the commit is authored with Claude Code, keep the trailer the harness adds.
+- **Do not add Claude/AI attribution** — no `Co-Authored-By: Claude` trailer and no "Generated with Claude Code" line. Commits are authored under the human's identity only.
