@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from terraform_intentions import app as app_module
-from terraform_intentions.app import app
+from terraform_intentions.app import _redact, app
 from terraform_intentions.config import get_settings
 
 KEY = "test-secret"
@@ -46,6 +46,11 @@ def _post(client: TestClient, payload: dict[str, Any], *, sign: bool = True) -> 
     body = json.dumps(payload).encode()
     headers = {"X-Tfc-Task-Signature": _sign(body) if sign else "deadbeef"}
     return client.post("/run-task", content=body, headers=headers)
+
+
+def test_redact_masks_access_token() -> None:
+    redacted = _redact({"access_token": "tok-secret", "run_id": "run-1"})
+    assert redacted == {"access_token": "***redacted***", "run_id": "run-1"}
 
 
 def test_healthz() -> None:
