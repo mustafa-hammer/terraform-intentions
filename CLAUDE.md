@@ -54,3 +54,26 @@ and push to `main`; all four must pass. pytest is **CI-only** — pre-commit run
 - Verify `X-Tfc-Task-Signature` (HMAC-SHA512 of the raw body) before trusting any payload.
 - Handle non-PR / speculative runs gracefully → pass with "no PR to compare."
 - Secrets (TFC team token, HMAC key) live in a git-ignored `.env` locally; never commit them.
+
+## RTS AI Hackathon Participant Tooling
+
+This project includes the hackathon tools pack at `.hackathon-tools/` and is wired for **both**
+harnesses contributors use here:
+
+- **Claude Code** — project slash commands live in `.claude/commands/`.
+- **IBM Bob** — native command/agent files live in `.bob/`.
+
+Participant-facing workflows (same names in both harnesses):
+
+- `/setup-hackathon`
+- `/run-readiness-review`
+- `/prepare-hackathon-submission`
+
+When asked to run one of these, read `.hackathon-tools/AGENTS.md`, then the matching skill and
+review-command files under `.hackathon-tools/`. If project-local slash commands aren't available in
+your Claude Code setup, ask Claude Code to read `.hackathon-tools/AGENTS.md` and run the workflow by
+name. See `.hackathon/hackathon-tooling-guide.md` for the per-harness usage guide.
+
+Do not run organizer-only review, scoring, award, ranking, or cross-team comparison workflows. Use
+review, readiness, completeness, evidence, and learning language. Use fake data; never expose
+customer data or secrets; never ask teams to save or share AI session transcripts.
