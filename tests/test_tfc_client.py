@@ -33,6 +33,21 @@ async def test_fetch_plan_json(client: TFCClient) -> None:
 
 
 @respx.mock
+async def test_fetch_plan_json_follows_redirect(client: TFCClient) -> None:
+    """Test fetching plan JSON follows TFC redirect to object storage."""
+    plan_url = "https://app.terraform.io/api/v2/plans/plan-redirect/json-output"
+    redirected_url = "https://archivist.terraform.io/v1/object/test-plan-json"
+    expected_plan = {"format_version": "1.0", "resource_changes": []}
+
+    respx.get(plan_url).mock(return_value=Response(307, headers={"Location": redirected_url}))
+    respx.get(redirected_url).mock(return_value=Response(200, json=expected_plan))
+
+    result = await client.fetch_plan_json(plan_url)
+
+    assert result == expected_plan
+
+
+@respx.mock
 async def test_fetch_ingress_attributes(client: TFCClient) -> None:
     """Test fetching ingress attributes from TFC."""
     cv_id = "cv-abc123"

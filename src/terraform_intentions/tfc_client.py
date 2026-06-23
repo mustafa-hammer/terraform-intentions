@@ -31,7 +31,7 @@ class TFCClient:
             httpx.HTTPError: If the request fails.
         """
         headers = {"Authorization": f"Bearer {self.team_token}"}
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
             response = await client.get(plan_json_api_url, headers=headers)
             response.raise_for_status()
             data: dict[str, Any] = response.json()
