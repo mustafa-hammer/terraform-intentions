@@ -26,7 +26,14 @@ uv run mypy                    # strict type check
 uv run pytest                  # all tests
 uv run pytest tests/test_x.py::test_name   # a single test
 uv run pre-commit install      # enable local ruff + mypy hooks (one-time)
+
+# run the webhook locally (needs TFI_TFC_HMAC_KEY; copy .env.example -> .env)
+TFI_TFC_HMAC_KEY=devsecret uv run uvicorn terraform_intentions.app:app --reload --port 8000
 ```
+
+Webhook endpoints: `GET /healthz` (liveness) and `POST /run-task` (the TFC run-task hook —
+verifies `X-Tfc-Task-Signature`, acks 200, posts the verdict to the callback URL in the
+background). Config is loaded from `TFI_`-prefixed env vars / `.env` via `config.py`.
 
 CI (`.github/workflows/ci.yml`) runs ruff check, ruff format --check, mypy, and pytest on every PR
 and push to `main`; all four must pass. pytest is **CI-only** — pre-commit runs ruff + mypy.
