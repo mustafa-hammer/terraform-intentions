@@ -39,6 +39,9 @@ brew install direnv
 # Add to your shell (bash/zsh)
 echo 'eval "$(direnv hook bash)"' >> ~/.bashrc  # or ~/.zshrc
 
+# Rename .env.example to .envrc
+mv .env .envrc
+
 # Allow direnv for this project
 direnv allow
 
@@ -58,6 +61,10 @@ In its own terminal (leave it running):
 
 ```bash
 TFI_TFC_HMAC_KEY=devsecret uv run uvicorn terraform_intentions.app:app --port 8000
+```
+Or, if using direnv:
+```
+uv run uvicorn terraform_intentions.app:app --port 8000
 ```
 
 Verify it's up:
