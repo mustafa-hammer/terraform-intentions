@@ -1,0 +1,90 @@
+{
+  "name": "rts-ai-hackathon-tools",
+  "version": "0.1.0",
+  "description": "Participant-facing project-local workflow pack for the RTS AI Hackathon.",
+  "intended_location": ".hackathon-tools/",
+  "audience": "hackathon-participants",
+  "included_workflows": [
+    "setup-hackathon",
+    "run-readiness-review",
+    "prepare-hackathon-submission"
+  ],
+  "included_epic_catalogs": [
+    "epics/rts",
+    "epics/enterpriseos"
+  ],
+  "excluded_workflows": [
+    "run-submission-review",
+    "run-hackathon-chronicle"
+  ],
+  "entrypoint_for_bob": "AGENTS.md",
+  "harness_adapters": {
+    "bob": {
+      "source_directory": ".bob",
+      "adapter_directory": "harnesses/bob",
+      "install_directory": ".bob",
+      "notes": "harnesses/bob is a discovery pointer. Commands and agents are native Bob project files under .bob. Workflows are passive reference/context files, not slash commands."
+    },
+    "github_copilot": {
+      "source_directory": "harnesses/github-copilot",
+      "install_file": ".github/copilot-instructions.md",
+      "notes": "Use only .github/copilot-instructions.md for Copilot-specific guidance."
+    },
+    "claude_code": {
+      "source_directory": "harnesses/claude-code",
+      "install_directory": ".claude/commands",
+      "notes": "Project-local command files plus optional CLAUDE.md guidance merge."
+    },
+    "codex": {
+      "source_directory": "harnesses/codex",
+      "install_file": "AGENTS.md",
+      "notes": "Merge hackathon guidance into root AGENTS.md; no global skill install required."
+    }
+  },
+  "bob_commands": {
+    "source_directory": ".bob/commands",
+    "install_directory": ".bob/commands",
+    "commands": [
+      "setup-hackathon",
+      "run-readiness-review",
+      "prepare-hackathon-submission"
+    ]
+  },
+  "bob_agents": {
+    "source_directory": ".bob/agents",
+    "install_directory": ".bob/agents",
+    "agents": [
+      "readiness-coach"
+    ]
+  },
+  "bob_native_support": {
+    "context": [
+      "hackathon-overview",
+      "file-map"
+    ],
+    "prompts": [
+      "setup-hackathon-prompt",
+      "readiness-review-prompt",
+      "prepare-submission-prompt",
+      "explain-tooling-prompt"
+    ],
+    "workflows": [
+      "hackathon-participant-flow"
+    ],
+    "rules": [
+      "rules-ask",
+      "rules-plan",
+      "rules-code",
+      "rules-advanced"
+    ],
+    "templates_directory": ".bob/templates",
+    "schemas_directory": ".bob/schemas",
+    "scripts_directory": ".bob/scripts"
+  },
+  "safety": {
+    "no_customer_data": true,
+    "no_secrets": true,
+    "no_transcripts_required": true,
+    "no_scores_or_rankings": true
+  }
+}

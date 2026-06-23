@@ -1,15 +1,27 @@
 # Local quality gates. ruff + mypy run on every commit; pytest runs in CI only.
 # Run `uv run pre-commit install` once to enable.
+#
+# All hooks run through `uv run` so they use the exact tool versions pinned in
+# uv.lock — the same versions CI runs. This is deliberate: a separately-pinned
+# ruff-pre-commit `rev` drifts from the lockfile and causes "passes locally,
+# fails in CI" (or vice versa). The lockfile is the single source of truth.
+# `--force-exclude` makes ruff honor the `exclude` config in pyproject.toml even
+# when pre-commit passes explicit file paths (e.g. for .hackathon-tools/).
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.0
-    hooks:
-      - id: ruff-check
-        args: [--fix]
-      - id: ruff-format
-
   - repo: local
     hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
       - id: mypy
         name: mypy
         entry: uv run mypy
