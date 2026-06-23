@@ -18,8 +18,24 @@ Run the checks locally any time:
 uv run ruff check .          # lint
 uv run ruff format .         # format (use --check in CI)
 uv run mypy                  # strict type check
-uv run pytest                # tests
+uv run pytest                # unit tests
 ```
+
+### E2E Smoke Test
+
+Before committing changes that affect the webhook server or request handling, run the E2E smoke test:
+
+```bash
+bash tests/smoke_test_e2e.sh
+```
+
+This test:
+- Starts a real server on port 8768
+- Verifies health check endpoint
+- Tests signature verification
+- Automatically cleans up the server process
+
+**Note:** The smoke test is not part of CI (requires a running server), but it's recommended to run it locally before pushing changes to server-related code.
 
 ## Branch naming
 

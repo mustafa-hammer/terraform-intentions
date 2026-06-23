@@ -13,7 +13,13 @@ class Settings(BaseSettings):
     # Shared HMAC key configured on the TFC run task; used to verify request signatures.
     tfc_hmac_key: str
 
-    # Timeout (seconds) for the outbound callback POST to TFC.
+    # TFC team token for reading ingress-attributes and plan JSON.
+    tfc_team_token: str
+
+    # TFC API base URL (default to cloud, allow override for enterprise).
+    tfc_api_base_url: str = "https://app.terraform.io/api/v2"
+
+    # Timeout (seconds) for outbound HTTP requests to TFC.
     request_timeout: float = 10.0
 
 
