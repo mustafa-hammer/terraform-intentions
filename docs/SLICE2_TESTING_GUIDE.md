@@ -49,8 +49,12 @@ This guide walks you through testing Slice 2 functionality locally with real Ter
 ## Step 2: Start the Webhook Locally
 
 1. **Terminal 1: Start the webhook**
+   
    ```bash
-   cd /Users/lobo235/dev/hackathon/tf-intent/terraform-intentions
+   cd /path/to/terraform-intentions
+   ```
+   Run:
+   ```bash 
    uv run uvicorn terraform_intentions.app:app --reload
    ```
 
