@@ -28,6 +28,27 @@ any value now and use the **same** value in TFC (step 5). For local dev:
 cp .env.example .env
 # edit .env so it reads:  TFI_TFC_HMAC_KEY=devsecret
 ```
+### Optional: Use direnv for automatic environment loading
+
+If you have [direnv](https://direnv.net/) installed, it will automatically load `.env` when you `cd` into the project:
+
+```bash
+# Install direnv (macOS)
+brew install direnv
+
+# Add to your shell (bash/zsh)
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc  # or ~/.zshrc
+
+# Allow direnv for this project
+direnv allow
+
+# Now .env is automatically loaded when you cd into the directory
+cd /path/to/terraform-intentions
+# ✅ terraform-intentions environment loaded
+```
+
+With direnv, you don't need to manually export variables or use inline env vars.
+
 
 You can also pass it inline (as below) instead of using `.env`.
 

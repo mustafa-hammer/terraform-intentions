@@ -1,7 +1,6 @@
 """FastAPI app exposing the TFC run-task webhook.
 
-Slice 1: verify the signature, ack 200 immediately, and asynchronously post a hardcoded
-``passed`` verdict back to TFC. No plan/PR analysis yet.
+Slice 2: fetch plan JSON and ingress attributes, log all data, post summary verdict.
 """
 
 import json
@@ -10,12 +9,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+import httpx
 from fastapi import BackgroundTasks, FastAPI, Request, Response
 
 from .callback import post_task_result
-from .config import get_settings
-from .models import RunTaskPayload
+from .config import Settings, get_settings
+from .models import IngressAttributes, PlanSummary, RunTaskPayload
 from .security import verify_signature
+from .tfc_client import TFCClient
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="terraform-intentions", version="0.1.0", lifespan=lifespan)
-
-_STUB_MESSAGE = "Advisory check passed (Slice 1 round-trip stub)."
 
 # Payload keys to mask before logging — short-lived credentials, not for logs.
 _SENSITIVE_KEYS = frozenset({"access_token"})
@@ -88,12 +87,130 @@ async def run_task(request: Request, background_tasks: BackgroundTasks) -> Respo
     # access_token / callback_url are guaranteed non-None here (not a verification event).
     assert payload.access_token is not None
     assert payload.task_result_callback_url is not None
+
     background_tasks.add_task(
-        post_task_result,
+        process_run_task,
+        payload,
+        settings,
+    )
+    return Response(status_code=200)
+
+
+async def process_run_task(payload: RunTaskPayload, settings: Settings) -> None:
+    """Background task: fetch data, analyze, post verdict."""
+    try:
+        client = TFCClient(
+            settings.tfc_api_base_url,
+            settings.tfc_team_token,
+            timeout=settings.request_timeout,
+        )
+
+        # Fetch ingress attributes
+        if not payload.configuration_version_id:
+            logger.warning(
+                "No configuration_version_id in payload, cannot fetch ingress attributes"
+            )
+            await _post_passed_no_pr(payload, settings)
+            return
+
+        ingress = await client.fetch_ingress_attributes(payload.configuration_version_id)
+        logger.info("Fetched ingress attributes: %s", ingress.model_dump_json(indent=2))
+
+        # Handle non-PR runs
+        if not ingress.is_pull_request:
+            logger.info(
+                "Run is not associated with a PR (is_speculative=%s)", payload.is_speculative
+            )
+            await _post_passed_no_pr(payload, settings)
+            return
+
+        # Fetch plan JSON
+        if not payload.plan_json_api_url:
+            logger.warning("No plan_json_api_url in payload")
+            await _post_passed_no_pr(payload, settings)
+            return
+
+        plan_json = await client.fetch_plan_json(payload.plan_json_api_url)
+        summary = client.summarize_plan(plan_json)
+        logger.info("Plan summary: %s", summary.model_dump_json(indent=2))
+
+        # Log PR context
+        logger.info(
+            "PR context: repo=%s, PR#%s, branch=%s",
+            ingress.identifier,
+            ingress.pull_request_number,
+            ingress.branch,
+        )
+        logger.info("PR body:\n%s", ingress.pull_request_body or "(empty)")
+
+        # For Slice 2, still post "passed" but with richer message
+        assert payload.task_result_callback_url is not None
+        assert payload.access_token is not None
+        message = _build_slice2_message(summary, ingress)
+        await post_task_result(
+            payload.task_result_callback_url,
+            payload.access_token,
+            "passed",
+            message,
+            timeout=settings.request_timeout,
+        )
+
+    except httpx.HTTPError:
+        logger.exception("Failed to fetch TFC data")
+        await _post_error(payload, settings, "Failed to fetch plan or PR data from TFC")
+    except Exception:
+        logger.exception("Unexpected error processing run task")
+        await _post_error(payload, settings, "Internal error processing run task")
+
+
+async def _post_passed_no_pr(payload: RunTaskPayload, settings: Settings) -> None:
+    """Post 'passed' verdict for non-PR runs."""
+    assert payload.task_result_callback_url is not None
+    assert payload.access_token is not None
+    message = (
+        "No PR associated with this run (direct push or manual run). Skipping intention check."
+    )
+    await post_task_result(
         payload.task_result_callback_url,
         payload.access_token,
         "passed",
-        _STUB_MESSAGE,
+        message,
         timeout=settings.request_timeout,
     )
-    return Response(status_code=200)
+
+
+async def _post_error(payload: RunTaskPayload, settings: Settings, message: str) -> None:
+    """Post 'passed' verdict with error message (advisory, so don't fail)."""
+    assert payload.task_result_callback_url is not None
+    assert payload.access_token is not None
+    await post_task_result(
+        payload.task_result_callback_url,
+        payload.access_token,
+        "passed",
+        f"⚠️ {message}",
+        timeout=settings.request_timeout,
+    )
+
+
+def _build_slice2_message(summary: PlanSummary, ingress: IngressAttributes) -> str:
+    """Build human-readable message for Slice 2 (data gathering complete)."""
+    if summary.is_empty():
+        return "✅ Plan has no changes. Intention check skipped."
+
+    parts = [
+        f"✅ Slice 2 data gathering complete for PR #{ingress.pull_request_number}.",
+        f"Plan changes: {summary.total_changes} resources",
+    ]
+
+    if summary.creates:
+        parts.append(f"  • Creates: {len(summary.creates)}")
+    if summary.updates:
+        parts.append(f"  • Updates: {len(summary.updates)}")
+    if summary.deletes:
+        parts.append(f"  • Deletes: {len(summary.deletes)}")
+    if summary.replaces:
+        parts.append(f"  • Replaces: {len(summary.replaces)}")
+
+    parts.append("(LLM analysis coming in Slice 3)")
+
+    return "\n".join(parts)
