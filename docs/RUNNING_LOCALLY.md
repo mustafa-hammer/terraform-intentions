@@ -1,7 +1,7 @@
 # Running the webhook locally (end to end)
 
 How to start the run-task webhook on your machine, expose it with a tunnel, and wire it
-to a Terraform Cloud (TFC) run task so a real plan triggers a green advisory check.
+to a Terraform Cloud (TFC) run task so a real plan triggers a green check.
 
 This is the Slice 1 round-trip: the webhook always returns a hardcoded `passed` — there's
 no plan/PR analysis yet.
@@ -177,7 +177,9 @@ In the TFC UI:
 2. **Attach it to a workspace:** open the workspace → **Settings → Run Tasks → Add run task.**
    - Select `intention-checker`
    - **Stage:** Post-plan
-   - **Enforcement:** **Advisory** (a "failed" result only warns; it never blocks an apply)
+   - **Enforcement:** your choice — **Advisory** (a "failed" result only warns) or **Mandatory**
+     (a "failed" result blocks the apply). The webhook behaves identically either way; TFC enforces
+     this. **Advisory** is the safe pick while you're trying it out.
 
 ## 6. Trigger a plan and watch it
 
@@ -185,8 +187,7 @@ Start a run in the workspace (queue a plan, or push a commit to a connected PR b
 When the run reaches **post-plan**, TFC calls the webhook. You should see:
 
 - the request logged in the **server** terminal,
-- a **green advisory check** for `intention-checker` in the run's UI (our callback posted
-  `passed`).
+- a **green check** for `intention-checker` in the run's UI (our callback posted `passed`).
 
 ## Troubleshooting
 

@@ -1,8 +1,8 @@
 # Terraform Plan ↔ PR Intention Checker — Project Plan
 
-A TFC post-plan **run task** webhook that checks whether a Terraform plan provisions
-more infrastructure than the corresponding GitHub PR description implies, and returns
-an **advisory** warning to TFC when it does.
+A TFC post-plan **run task** webhook that checks whether a Terraform plan matches the
+corresponding GitHub PR description, and returns a `passed`/`failed` verdict to TFC. Whether a
+failure warns or blocks is the operator's choice (the run task's enforcement level).
 
 Learning goals threaded through the build: **Claude Code**, **Skills**, **LangChain**.
 
@@ -12,7 +12,7 @@ Learning goals threaded through the build: **Claude Code**, **Skills**, **LangCh
 
 - **Thin vertical slices.** Every slice ends in a working, committable, demoable state.
 - **Public-repo quality bar.** Conventional commits, CI green, tests, README that explains *why*, not just *how*.
-- **Advisory only (for now).** Advisory run tasks can't block a run — a "fail" surfaces as a warning. Zero risk of blocking real applies while iterating.
+- **Enforcement is the operator's choice.** The webhook posts an honest `passed`/`failed`; TFC's enforcement level (advisory = warn, mandatory = block) is set by whoever registers the run task. Advisory is a safe default while iterating; the webhook works identically either way.
 - **Honesty about tools.** This is essentially one structured LLM call. LangChain isn't load-bearing; we use it deliberately because learning it is a goal, and we say so in the README.
 
 ---
@@ -70,13 +70,13 @@ team token to read that endpoint.
 
 Set the tone from commit #1.
 
-- [ ] Public repo, LICENSE, README skeleton, `.gitignore`
-- [ ] Python project (`uv` + `pyproject.toml`, `src/` layout)
-- [ ] Lint/format/type: `ruff` (lint + format) + `mypy`, wired into `pre-commit`
-- [ ] CI: GitHub Actions running lint + tests on PR
-- [ ] Conventional Commits convention documented in CONTRIBUTING / README
-- [ ] `CLAUDE.md` capturing stack, commands, conventions, and guardrails
-- [ ] A `commit` **skill** at `.claude/skills/commit/SKILL.md` for conventional commits
+- [x] Public repo, LICENSE, README skeleton, `.gitignore`
+- [x] Python project (`uv` + `pyproject.toml`, `src/` layout)
+- [x] Lint/format/type: `ruff` (lint + format) + `mypy`, wired into `pre-commit`
+- [x] CI: GitHub Actions running lint + tests on PR
+- [x] Conventional Commits convention documented in CONTRIBUTING / README
+- [x] `CLAUDE.md` capturing stack, commands, conventions, and guardrails
+- [x] A `commit` **skill** at `.claude/skills/commit/SKILL.md` for conventional commits
 
 **Claude Code:** run `/init` to draft `CLAUDE.md` (keep it short — ~30 lines it'll actually
 follow). In current Claude Code, custom commands *are* skills, so make the commit helper a
@@ -87,37 +87,37 @@ clean first commit.
 
 ## Slice 1 — Webhook round-trip (no intelligence yet)
 
-- [ ] FastAPI endpoint accepting the run task POST, returns 200 immediately
-- [ ] Verify `X-Tfc-Task-Signature` (HMAC-SHA512 of raw body)
-- [ ] Parse payload into a typed pydantic model
-- [ ] Post a hardcoded `passed` to `task_result_callback_url`
-- [ ] Run locally behind a tunnel (cloudflared/ngrok); create the run task in TFC as **advisory**
+- [x] FastAPI endpoint accepting the run task POST, returns 200 immediately
+- [x] Verify `X-Tfc-Task-Signature` (HMAC-SHA512 of raw body)
+- [x] Parse payload into a typed pydantic model
+- [x] Post a hardcoded `passed` to `task_result_callback_url`
+- [x] Run locally behind a tunnel (cloudflared/ngrok); create the run task in TFC (advisory is the easy choice while bootstrapping)
 
-**Done when:** a real TFC plan triggers your webhook and you see a green advisory check in
+**Done when:** a real TFC plan triggers your webhook and you see a green check in
 the TFC UI. *This is the riskiest integration moment — get it green before adding logic.*
 
 ## Slice 2 — Fetch the real inputs
 
-- [ ] Spike: confirm the TFC **team token** can read `ingress-attributes` on your workspace
-- [ ] Store the team token + HMAC key as local secrets (env / `.env`, git-ignored)
-- [ ] Fetch plan JSON from `plan_json_api_url`
-- [ ] Fetch `ingress-attributes` → `pull-request-body`, `pull-request-number`, `identifier`, `is-pull-request`
-- [ ] Handle the non-PR case → pass with a note
-- [ ] Reduce plan JSON to a compact change summary (`resource_changes` with create/update/delete/replace), dropping no-ops
+- [x] Spike: confirm the TFC **team token** can read `ingress-attributes` on your workspace
+- [x] Store the team token + HMAC key as local secrets (env / `.env`, git-ignored)
+- [x] Fetch plan JSON from `plan_json_api_url`
+- [x] Fetch `ingress-attributes` → `pull-request-body`, `pull-request-number`, `identifier`, `is-pull-request`
+- [x] Handle the non-PR case → pass with a note
+- [x] Reduce plan JSON to a compact change summary (`resource_changes` with create/update/delete/replace), dropping no-ops
 
 **Done when:** for a real run, the webhook logs the PR body and the list of resource changes.
 Pre-LLM reduction keeps tokens sane and is just good engineering.
 
 ## Slice 3 — The naive diff (LangChain enters, deliberately dumb)
 
-- [ ] Define the verdict as a pydantic model: `matches: bool`, `unexpected_resources: list`, `reasoning: str`, `severity`
-- [ ] One LangChain chain: (PR body + plan summary) → structured verdict via `with_structured_output`
-- [ ] Keep the prompt simple; don't optimize yet
-- [ ] Map verdict → callback: matches → `passed`; extra infra → `failed` (advisory warning) with a message
-- [ ] Add one or two TFC `outcomes` so findings render nicely in the UI
+- [x] Define the verdict as a pydantic model: `matches: bool`, `unexpected_resources: list`, `reasoning: str`, `severity`
+- [x] One LangChain chain: (PR body + plan summary) → structured verdict via `with_structured_output`
+- [x] Keep the prompt simple; don't optimize yet
+- [x] Map verdict → callback: matches → `passed`; a mismatch → `failed` with a message (TFC's enforcement level decides whether that warns or blocks)
+- [x] Add one or two TFC `outcomes` so findings render nicely in the UI — a structured outcome with a Markdown body (resource breakdown) and `severity`/`status` tags; the flat `message` stays a one-line summary
 
 **Done when:** a PR whose description says "add an S3 bucket" but whose plan *also* creates
-an RDS instance produces an advisory warning in TFC that names the RDS instance.
+an RDS instance produces a `failed` verdict in TFC that names the RDS instance.
 
 **LangChain note:** introduce LCEL and structured output here. This is the "learn LangChain"
 payoff — and the right place in the README to be honest that the SDK alone would also do it.

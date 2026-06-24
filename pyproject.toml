@@ -9,6 +9,8 @@ dependencies = [
     "uvicorn[standard]",
     "httpx",
     "pydantic-settings",
+    "langchain-anthropic>=1.4.7",
+    "langchain-core>=1.4.8",
 ]
 
 [build-system]

@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A TFC post-plan **run-task webhook** that checks whether a Terraform plan provisions more
-infrastructure than the corresponding GitHub PR description implies, and returns an **advisory**
-verdict to Terraform Cloud. The PR body comes straight from TFC's `ingress-attributes`
-(`pull-request-body`) — no GitHub API needed for v1.
+A TFC post-plan **run-task webhook** that checks whether a Terraform plan matches the
+corresponding GitHub PR description, and returns a `passed`/`failed` verdict to Terraform Cloud
+(the operator's enforcement level decides whether a failure warns or blocks). The PR body comes
+straight from TFC's `ingress-attributes` (`pull-request-body`) — no GitHub API needed for v1.
 
 Learning goals threaded through the build: **Claude Code**, **Skills**, **LangChain**. Read
 `docs/PROJECT_PLAN.md` for the full architecture and the thin-vertical-slice roadmap (Slice 0–5);
@@ -48,7 +48,12 @@ and push to `main`; all four must pass. pytest is **CI-only** — pre-commit run
 
 ## Guardrails
 
-- The run task is **advisory only** — a "failed" verdict surfaces as a warning, never blocks an apply.
+- The webhook is **enforcement-agnostic**: it posts an honest `passed`/`failed`, and TFC's
+  enforcement level — set by the **operator** when they register the run task (advisory = warns,
+  mandatory = blocks) — decides what a failure does. Don't hard-code or assume "advisory only."
+- **Fail closed** when our own check can't run (LLM/TFC/network error): post `failed` with an
+  "inconclusive" message rather than a false `passed`. "Nothing to check" cases (non-PR run, empty
+  plan, empty PR body) still post `passed`.
 - Respond `200` to TFC's initial POST immediately; do the real work and POST the verdict to
   `task_result_callback_url` afterward (a non-200 makes TFC retry).
 - Verify `X-Tfc-Task-Signature` (HMAC-SHA512 of the raw body) before trusting any payload.
