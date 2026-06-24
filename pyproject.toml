@@ -9,6 +9,8 @@ dependencies = [
     "uvicorn[standard]",
     "httpx",
     "pydantic-settings",
+    "langchain>=0.3",
+    "langchain-openai>=0.3",
 ]
 
 [build-system]

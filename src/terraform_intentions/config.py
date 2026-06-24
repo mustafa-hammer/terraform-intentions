@@ -13,8 +13,19 @@ class Settings(BaseSettings):
     # Shared HMAC key configured on the TFC run task; used to verify request signatures.
     tfc_hmac_key: str
 
-    # Timeout (seconds) for the outbound callback POST to TFC.
+    # TFC team token used to read plan JSON and ingress-attributes.
+    # Needs at least read access to the workspace's configuration versions and plans.
+    tfc_team_token: str
+
+    # Timeout (seconds) for outbound HTTP calls (TFC fetch + callback POST).
     request_timeout: float = 10.0
+
+    # OpenAI API key used by the LangChain verdict chain.
+    openai_api_key: str
+
+    # Chat model to use for verdict generation.  gpt-4o gives the best results;
+    # gpt-4o-mini is cheaper and fast enough for advisory-only use.
+    openai_model: str = "gpt-4o-mini"
 
 
 @lru_cache
