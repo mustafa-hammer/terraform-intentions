@@ -207,7 +207,7 @@ INFO:terraform_intentions.app:Posted run-task result status=passed
 2. TFC UI shows:
    - ✅ Green check on run task
    - ✅ Message with PR number and resource counts
-   - ✅ Advisory status (doesn't block apply)
+   - ✅ The run task result posted (advisory or mandatory — whichever enforcement you set)
 
 3. Non-PR runs handled gracefully:
    - ✅ Logs show "No PR associated"

@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     # Timeout (seconds) for outbound HTTP requests to TFC.
     request_timeout: float = 10.0
 
+    # Anthropic API key for the LangChain intention-check chain.
+    anthropic_api_key: str
+
+    # Claude model id used for the intention check.
+    model_id: str = "claude-sonnet-4-6"
+
+    # Timeout (seconds) for the LLM call — looser than TFC calls, which are quick.
+    llm_timeout: float = 30.0
+
+    # Retries ChatAnthropic attempts on transient LLM errors.
+    llm_max_retries: int = 2
+
 
 @lru_cache
 def get_settings() -> Settings:

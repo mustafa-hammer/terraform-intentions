@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Integration test that simulates the full Slice 2 flow with mocked TFC responses.
+Integration test that simulates the full flow with mocked TFC responses.
 This demonstrates what happens when the webhook receives a real TFC request.
 
-NOTE: This test uses MOCKED TFC API responses - no real API calls are made.
-The tokens below are fake test values, not real credentials.
+NOTE: This test uses MOCKED TFC API responses and an injected fake LLM chain - no real
+API calls are made. The tokens below are fake test values, not real credentials.
 """
 
 import asyncio
@@ -135,6 +135,7 @@ async def test_pr_run_full_flow() -> None:
         settings = Settings(
             tfc_hmac_key=HMAC_KEY,
             tfc_team_token=TFC_TEAM_TOKEN,
+            anthropic_api_key="test-anthropic-key",
         )
         client = TFCClient(
             settings.tfc_api_base_url,
@@ -161,13 +162,30 @@ async def test_pr_run_full_flow() -> None:
         print(f"   ➖ Deletes: {len(summary.deletes)}")
         print(f"   🔁 Replaces: {len(summary.replaces)}")
 
-        print("\n✉️  Step 4: Post verdict back to TFC")
-        message = f"""✅ Slice 2 data gathering complete for PR #{ingress.pull_request_number}.
-Plan changes: {summary.total_changes} resources
-  • Creates: {len(summary.creates)}
-(LLM analysis coming in Slice 3)"""
+        print("\n🤖 Step 4: Ask the LLM whether the plan matches the PR intention")
+        # Inject a fake chain so this demo stays offline and deterministic.
+        from langchain_core.runnables import RunnableLambda
 
-        print("   Status: passed (advisory)")
+        from terraform_intentions.analysis import analyze_intention
+        from terraform_intentions.app import _build_verdict_message
+        from terraform_intentions.models import TaskResultStatus, Verdict
+
+        canned = Verdict(
+            matches=True,
+            unexpected_resources=[],
+            missing_resources=[],
+            reasoning="The plan only creates the S3 bucket and its configuration the PR describes.",
+            severity="none",
+        )
+        verdict = await analyze_intention(
+            pr_body, summary, settings, chain=RunnableLambda(lambda _inputs: canned)
+        )
+        print(f"   ✅ matches={verdict.matches} severity={verdict.severity}")
+
+        print("\n✉️  Step 5: Post verdict back to TFC")
+        status: TaskResultStatus = "passed" if verdict.matches else "failed"
+        message = _build_verdict_message(verdict, ingress)
+        print(f"   Status: {status} (TFC enforcement decides if a failure warns or blocks)")
         print(f"   Message: {message}")
 
         # Verify the callback would be made
@@ -176,7 +194,7 @@ Plan changes: {summary.total_changes} resources
         await post_task_result(
             callback_url,
             str(run_task_payload["access_token"]),
-            "passed",
+            status,
             message,
             timeout=settings.request_timeout,
         )
@@ -189,8 +207,8 @@ Plan changes: {summary.total_changes} resources
         print("   ✅ Webhook can fetch PR metadata from TFC")
         print("   ✅ Webhook can fetch and parse plan JSON")
         print("   ✅ Plan summary correctly categorizes changes")
-        print("   ✅ Verdict is posted back to TFC")
-        print("   ✅ All data is available for Slice 3 (LLM analysis)")
+        print("   ✅ The LangChain chain returns a structured verdict")
+        print("   ✅ The verdict is mapped to a status and posted back to TFC")
 
 
 async def test_non_pr_run() -> None:
@@ -240,6 +258,7 @@ async def test_non_pr_run() -> None:
         settings = Settings(
             tfc_hmac_key=HMAC_KEY,
             tfc_team_token=TFC_TEAM_TOKEN,
+            anthropic_api_key="test-anthropic-key",
         )
         client = TFCClient(
             settings.tfc_api_base_url,
@@ -256,7 +275,7 @@ async def test_non_pr_run() -> None:
         message = (
             "No PR associated with this run (direct push or manual run). Skipping intention check."
         )
-        print("   Status: passed (advisory)")
+        print("   Status: passed (nothing to check)")
         print(f"   Message: {message}")
 
         from terraform_intentions.callback import post_task_result
@@ -276,13 +295,13 @@ async def test_non_pr_run() -> None:
         print("\n📋 What this proves:")
         print("   ✅ Non-PR runs are handled gracefully")
         print("   ✅ Webhook doesn't crash on missing PR data")
-        print("   ✅ Still posts advisory 'passed' verdict")
+        print("   ✅ Still posts a 'passed' verdict (nothing to check)")
 
 
 async def main() -> None:
     """Run all integration tests."""
     print("\n" + "🚀 " * 20)
-    print("SLICE 2 INTEGRATION TESTS")
+    print("INTEGRATION TESTS")
     print("Simulating real TFC webhook requests with mocked API responses")
     print("🚀 " * 20)
 
@@ -292,12 +311,12 @@ async def main() -> None:
     print("\n" + "=" * 80)
     print("🎉 ALL INTEGRATION TESTS PASSED")
     print("=" * 80)
-    print("\n✅ Slice 2 is ready for production!")
+    print("\n✅ The webhook:")
     print("   - Fetches PR metadata from TFC")
     print("   - Fetches and summarizes plan JSON")
+    print("   - Asks the LangChain chain whether the plan matches the PR intention")
+    print("   - Maps the verdict to a status and posts it back to TFC")
     print("   - Handles both PR and non-PR runs")
-    print("   - Posts verdicts back to TFC")
-    print("   - Ready for Slice 3 (LangChain integration)")
 
 
 if __name__ == "__main__":

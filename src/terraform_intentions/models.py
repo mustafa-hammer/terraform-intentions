@@ -72,3 +72,31 @@ class PlanSummary(BaseModel):
     def is_empty(self) -> bool:
         """True if plan has no actual changes."""
         return self.total_changes == 0
+
+
+class Verdict(BaseModel):
+    """The LLM's structured judgement of plan-vs-PR-intention.
+
+    This is the schema the LangChain chain fills via ``with_structured_output``.
+    """
+
+    matches: bool  # True only if the plan does no more AND no less than the description implies
+    unexpected_resources: list[str]  # Plan resources beyond the intent (extra/out-of-scope)
+    missing_resources: list[str]  # Resources the PR described but the plan does not create
+    reasoning: str  # Short explanation of the judgement
+    severity: Literal["none", "low", "medium", "high"]  # "none" when matches is True
+
+
+class Outcome(BaseModel):
+    """A structured TFC run-task result outcome.
+
+    Rendered by TFC as an enriched card: ``body`` supports Markdown (lists, line breaks), and
+    ``tags`` named ``severity``/``status`` get colour + icon treatment keyed off ``level``.
+    """
+
+    outcome_id: str
+    description: str  # One-line summary shown as the outcome title
+    body: str | None = None  # Markdown detail
+    url: str | None = None
+    # {tag_name: [{"label": str, "level": "none"|"info"|"warning"|"error"}]}
+    tags: dict[str, list[dict[str, str]]] | None = None
