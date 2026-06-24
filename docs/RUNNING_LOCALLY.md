@@ -26,7 +26,9 @@ The webhook requires two environment variables:
 1. **HMAC key** - verifies every request's `X-Tfc-Task-Signature` against a shared secret
 2. **TFC team token** - authenticates with TFC API to fetch plan JSON and ingress attributes
 
-Set them up:
+**Choose one of two methods:**
+
+### Option A: Using .env file (recommended for most users)
 
 ```bash
 cp .env.example .env
@@ -35,7 +37,36 @@ cp .env.example .env
 #   TFI_TFC_TEAM_TOKEN=your-tfc-team-token-here
 ```
 
-The HMAC key can be any value for local dev; use the **same** value in TFC (step 5).
+The application will automatically load `.env` on startup.
+
+### Option B: Using direnv (automatic environment loading)
+
+If you have [direnv](https://direnv.net/) installed:
+
+```bash
+# Install direnv (macOS)
+brew install direnv
+
+# Add to your shell
+# For bash:
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+
+# For zsh:
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+
+# Set up .envrc
+cp .envrc.example .envrc
+# edit .envrc to set:
+#   export TFI_TFC_HMAC_KEY=devsecret
+#   export TFI_TFC_TEAM_TOKEN=your-tfc-team-token-here
+
+# Allow direnv for this project
+direnv allow
+```
+
+With direnv, environment variables are automatically loaded when you `cd` into the directory.
+
+**Important:** The HMAC key can be any value for local dev; use the **same** value in TFC (step 5).
 
 ### Creating a TFC Team Token
 
@@ -78,43 +109,23 @@ The TFC team token must be a valid [team token](https://developer.hashicorp.com/
      https://app.terraform.io/api/v2/organizations/YOUR-ORG/workspaces \
      | jq '.data[0].attributes.name'
    ```
-### Optional: Use direnv for automatic environment loading
-
-If you have [direnv](https://direnv.net/) installed, it will automatically load `.env` when you `cd` into the project:
-
-```bash
-# Install direnv (macOS)
-brew install direnv
-
-# Add to your shell (bash/zsh)
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc  # or ~/.zshrc
-
-# Rename .env.example to .envrc
-mv .env .envrc
-
-# Allow direnv for this project
-direnv allow
-
-# Now .env is automatically loaded when you cd into the directory
-cd /path/to/terraform-intentions
-# ✅ terraform-intentions environment loaded
-```
-
-With direnv, you don't need to manually export variables or use inline env vars.
-
-
-You can also pass it inline (as below) instead of using `.env`.
-
 ## 3. Start the webhook server
 
 In its own terminal (leave it running):
 
-```bash
-TFI_TFC_HMAC_KEY=devsecret TFI_TFC_TEAM_TOKEN=your-token-here uv run uvicorn terraform_intentions.app:app --port 8000
-```
-Or, if using direnv (which loads `.env` automatically):
+**If using .env file:**
 ```bash
 uv run uvicorn terraform_intentions.app:app --port 8000
+```
+
+**If using direnv:**
+```bash
+uv run uvicorn terraform_intentions.app:app --port 8000
+```
+
+**If passing inline (without .env or direnv):**
+```bash
+TFI_TFC_HMAC_KEY=devsecret TFI_TFC_TEAM_TOKEN=your-token-here uv run uvicorn terraform_intentions.app:app --port 8000
 ```
 
 Verify it's up:
