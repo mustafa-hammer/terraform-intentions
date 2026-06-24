@@ -7,8 +7,8 @@ import argparse
 from collections import defaultdict
 import json
 from pathlib import Path
+import re
 import subprocess
-import sys
 
 
 NOISY_DIRS = {
@@ -40,6 +40,10 @@ LANG_BY_EXT = {
     ".sh": "Shell",
 }
 
+# Git ref validation pattern (alphanumeric, hyphens, underscores, slashes, dots, tildes, carets)
+# Allows: branch names, tags, HEAD~1, HEAD^, origin/main, etc.
+GIT_REF_PATTERN = re.compile(r'^[a-zA-Z0-9/_.\-~^@]+$')
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -58,15 +62,41 @@ def main() -> int:
         "--verification-command",
         action="append",
         default=[],
-        help="Command to run and record. May be repeated.",
+        help=(
+            "Command to run and record. May be repeated. "
+            "WARNING: Commands are executed with shell=True - only use trusted input."
+        ),
     )
     args = parser.parse_args()
+
+    # Validate git refs to prevent injection
+    if args.base_ref and not GIT_REF_PATTERN.match(args.base_ref):
+        parser.error(
+            f"Invalid base-ref format: {args.base_ref}. "
+            "Use standard git ref characters only (alphanumeric, -_./~^@)."
+        )
+    if args.head_ref and not GIT_REF_PATTERN.match(args.head_ref):
+        parser.error(
+            f"Invalid head-ref format: {args.head_ref}. "
+            "Use standard git ref characters only (alphanumeric, -_./~^@)."
+        )
 
     repo = args.repo.resolve()
     git_available = is_git_repo(repo)
     files = git_files(repo) if git_available else walked_files(repo)
-    head_ref = args.head_ref or (git_output(repo, ["rev-parse", "--abbrev-ref", "HEAD"]) if git_available else "")
-    changed_files = git_changed_files(repo, args.base_ref, head_ref) if git_available and args.base_ref else files
+    head_ref = args.head_ref or (
+        git_output(repo, ["rev-parse", "--abbrev-ref", "HEAD"]) if git_available else ""
+    )
+
+    # Calculate changed files: use git diff if base_ref provided, otherwise fall back to all files
+    if git_available and args.base_ref:
+        changed_files = git_changed_files(repo, args.base_ref, head_ref)
+        # If git diff returns empty (no changes or command failed), fall back to all files
+        if not changed_files:
+            changed_files = files
+    else:
+        changed_files = files
+
     line_stats = git_line_stats(repo, args.base_ref, head_ref) if git_available else (0, 0)
     warnings = primary_path_warnings(repo, args.primary_path, git_available)
     verification = run_verification(repo, args.verification_command)
@@ -82,13 +112,16 @@ def main() -> int:
             "base_ref": args.base_ref if git_available else "",
             "head_ref": head_ref if git_available else "",
         },
-        "counts": counts(repo, files, changed_files, line_stats),
+        "counts": counts(files, changed_files, line_stats),
         "languages": languages(repo, files),
         "top_level_modules": top_level_modules(files),
         "changed_files": changed_files,
         "signals": signals(files),
         "verification": verification,
-        "warnings": warnings + [f"Verification command failed: {cmd}" for cmd in verification.get("commands_failed", [])],
+        "warnings": warnings + [
+            f"Verification command failed: {cmd}"
+            for cmd in verification.get("commands_failed", [])
+        ],
     }
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -165,7 +198,7 @@ def is_noisy(rel: str) -> bool:
     return any(rel == noisy or rel.startswith(noisy + "/") for noisy in NOISY_DIRS)
 
 
-def counts(repo: Path, files: list[str], changed_files: list[str], line_stats: tuple[int, int]) -> dict[str, int]:
+def counts(files: list[str], changed_files: list[str], line_stats: tuple[int, int]) -> dict[str, int]:
     added, deleted = line_stats
     return {
         "files_total": len(files),
@@ -282,9 +315,15 @@ def primary_path_warnings(repo: Path, paths: list[str], git_available: bool) -> 
 
 
 def run_verification(repo: Path, commands: list[str]) -> dict[str, object]:
+    """Run verification commands.
+
+    WARNING: Executes with shell=True - only use trusted input.
+    """
     commands_run = []
     commands_failed = []
     for command in commands:
+        # Security note: shell=True is used here to allow complex commands with pipes, redirects, etc.
+        # This is intentional but requires trusted input. Do not use with untrusted user input.
         result = subprocess.run(command, cwd=repo, shell=True, text=True, capture_output=True, check=False)
         status = "passed" if result.returncode == 0 else "failed"
         notes = (result.stdout.strip() or result.stderr.strip()).splitlines()
@@ -295,7 +334,11 @@ def run_verification(repo: Path, commands: list[str]) -> dict[str, object]:
     return {
         "commands_run": commands_run,
         "commands_failed": commands_failed,
-        "notes": "Verification commands recorded by generate-repo-summary.py." if commands else "No verification commands recorded.",
+        "notes": (
+            "Verification commands recorded by generate-repo-summary.py."
+            if commands
+            else "No verification commands recorded."
+        ),
     }
 
 
