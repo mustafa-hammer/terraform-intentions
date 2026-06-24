@@ -54,3 +54,8 @@ files = ["src", "tests"]
 testpaths = ["tests"]
 addopts = "-ra"
 asyncio_mode = "auto"
+filterwarnings = [
+    # starlette/FastAPI TestClient deprecation for httpx — not actionable until
+    # fastapi pins httpx2 as a dependency; suppress to keep test output clean.
+    "ignore::DeprecationWarning:starlette",
+]
