@@ -1,0 +1,11 @@
+# direnv configuration - exports environment variables when you cd into this directory
+# Copy to .envrc and fill in your actual values. .envrc is git-ignored.
+
+# Shared HMAC key configured on the TFC run task (used to verify request signatures).
+export TFI_TFC_HMAC_KEY=replace-me
+
+# TFC team token (scoped to read workspace) for fetching plan JSON and ingress-attributes.
+export TFI_TFC_TEAM_TOKEN=replace-me
+
+# TFC API base URL (default: https://app.terraform.io/api/v2, override for enterprise).
+# export TFI_TFC_API_BASE_URL=https://app.terraform.io/api/v2

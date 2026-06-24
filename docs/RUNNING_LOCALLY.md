@@ -19,52 +19,113 @@ no plan/PR analysis yet.
 uv sync
 ```
 
-## 2. Choose an HMAC key
+## 2. Configure environment variables
 
-The webhook verifies every request's `X-Tfc-Task-Signature` against a shared secret. Pick
-any value now and use the **same** value in TFC (step 5). For local dev:
+The webhook requires two environment variables:
+
+1. **HMAC key** - verifies every request's `X-Tfc-Task-Signature` against a shared secret
+2. **TFC team token** - authenticates with TFC API to fetch plan JSON and ingress attributes
+
+**Choose one of two methods:**
+
+### Option A: Using .env file (recommended for most users)
 
 ```bash
 cp .env.example .env
-# edit .env so it reads:  TFI_TFC_HMAC_KEY=devsecret
+# edit .env to set:
+#   TFI_TFC_HMAC_KEY=devsecret
+#   TFI_TFC_TEAM_TOKEN=your-tfc-team-token-here
 ```
-### Optional: Use direnv for automatic environment loading
 
-If you have [direnv](https://direnv.net/) installed, it will automatically load `.env` when you `cd` into the project:
+The application will automatically load `.env` on startup.
+
+### Option B: Using direnv (automatic environment loading)
+
+If you have [direnv](https://direnv.net/) installed:
 
 ```bash
 # Install direnv (macOS)
 brew install direnv
 
-# Add to your shell (bash/zsh)
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc  # or ~/.zshrc
+# Add to your shell
+# For bash:
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
 
-# Rename .env.example to .envrc
-mv .env .envrc
+# For zsh:
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+
+# Set up .envrc
+cp .envrc.example .envrc
+# edit .envrc to set:
+#   export TFI_TFC_HMAC_KEY=devsecret
+#   export TFI_TFC_TEAM_TOKEN=your-tfc-team-token-here
 
 # Allow direnv for this project
 direnv allow
-
-# Now .env is automatically loaded when you cd into the directory
-cd /path/to/terraform-intentions
-# ✅ terraform-intentions environment loaded
 ```
 
-With direnv, you don't need to manually export variables or use inline env vars.
+With direnv, environment variables are automatically loaded when you `cd` into the directory.
 
+**Important:** The HMAC key can be any value for local dev; use the **same** value in TFC (step 5).
 
-You can also pass it inline (as below) instead of using `.env`.
+### Creating a TFC Team Token
 
+The TFC team token must be a valid [team token](https://developer.hashicorp.com/terraform/cloud-docs/users-teams-organizations/api-tokens#team-api-tokens) with read access to the workspace.
+
+**To create one:**
+
+1. **Navigate to Organization Settings**
+   ```
+   https://app.terraform.io/app/YOUR-ORG/settings
+   ```
+
+2. **Go to API Tokens page**
+   - In the left sidebar, click "API Tokens"
+   - Click on the "Team Tokens" tab
+
+3. **Create Team Token**
+   - Click "Create a team token"
+   - Select the team (e.g., "owners")
+   - Click "Generate token"
+   - Copy the token immediately (it won't be shown again)
+   - Token format: `xxxxxxxxxxxxx.atlasv1.xxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+4. **Add to .env**
+   ```bash
+   # Edit .env file
+   nano .env
+   
+   # Replace the placeholder:
+   TFI_TFC_TEAM_TOKEN=your-actual-token-here
+   ```
+
+5. **Verify Token Works**
+   ```bash
+   # Test the token can read TFC API
+   export TFI_TFC_TEAM_TOKEN="your-token"
+   
+   # Try to list workspaces (should return JSON)
+   curl -s -H "Authorization: Bearer $TFI_TFC_TEAM_TOKEN" \
+     https://app.terraform.io/api/v2/organizations/YOUR-ORG/workspaces \
+     | jq '.data[0].attributes.name'
+   ```
 ## 3. Start the webhook server
 
 In its own terminal (leave it running):
 
+**If using .env file:**
 ```bash
-TFI_TFC_HMAC_KEY=devsecret uv run uvicorn terraform_intentions.app:app --port 8000
-```
-Or, if using direnv:
-```
 uv run uvicorn terraform_intentions.app:app --port 8000
+```
+
+**If using direnv:**
+```bash
+uv run uvicorn terraform_intentions.app:app --port 8000
+```
+
+**If passing inline (without .env or direnv):**
+```bash
+TFI_TFC_HMAC_KEY=devsecret TFI_TFC_TEAM_TOKEN=your-token-here uv run uvicorn terraform_intentions.app:app --port 8000
 ```
 
 Verify it's up:
@@ -131,6 +192,7 @@ When the run reaches **post-plan**, TFC calls the webhook. You should see:
 
 | Symptom | Likely cause |
 | --- | --- |
+| `500` error with "Field required" for `tfc_team_token` | Missing `TFI_TFC_TEAM_TOKEN` environment variable |
 | `401` in server logs / TFC test fails | HMAC key in TFC ≠ `TFI_TFC_HMAC_KEY` |
 | Tunnel `curl /healthz` hangs or 502 | uvicorn server isn't running on port 8000 |
 | TFC can't reach endpoint after a while | tunnel was restarted → new hostname; update the run task URL |

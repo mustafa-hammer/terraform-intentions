@@ -8,45 +8,9 @@ This guide walks you through testing Slice 2 functionality locally with real Ter
 - ✅ Smoke tests passing (`./tests/smoke_test_e2e.sh`)
 - ✅ TFC workspace configured (from Slice 1)
 - ✅ GitHub repo connected to TFC workspace
-- ⚠️ TFC team token (we'll create this)
+- ✅ TFC team token configured (see [RUNNING_LOCALLY.md](RUNNING_LOCALLY.md#creating-a-tfc-team-token))
 
-## Step 1: Create TFC Team Token
-
-1. **Navigate to TFC Team Settings**
-   ```
-   https://app.terraform.io/app/YOUR-ORG/settings/teams
-   ```
-
-2. **Select a Team** (or create one)
-   - Click on the team name (e.g., "owners")
-   - Go to "Team API Token" tab
-
-3. **Generate Token**
-   - Click "Create a team token"
-   - Copy the token immediately (it won't be shown again)
-   - Token format: `xxxxxxxxxxxxx.atlasv1.xxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
-
-4. **Add to .env**
-   ```bash
-   # Edit .env file
-   nano .env
-   
-   # Replace the placeholder:
-   TFI_TFC_TEAM_TOKEN=your-actual-token-here
-   ```
-
-5. **Verify Token Works**
-   ```bash
-   # Test the token can read TFC API
-   export TFI_TFC_TEAM_TOKEN="your-token"
-   
-   # Try to list workspaces (should return JSON)
-   curl -s -H "Authorization: Bearer $TFI_TFC_TEAM_TOKEN" \
-     https://app.terraform.io/api/v2/organizations/YOUR-ORG/workspaces \
-     | jq '.data[0].attributes.name'
-   ```
-
-## Step 2: Start the Webhook Locally
+## Step 1: Start the Webhook Locally
 
 1. **Terminal 1: Start the webhook**
    
@@ -73,7 +37,7 @@ This guide walks you through testing Slice 2 functionality locally with real Ter
    # Should return: {"status":"ok"}
    ```
 
-## Step 3: Expose Webhook with Cloudflared
+## Step 2: Expose Webhook with Cloudflared
 
 1. **Terminal 2: Start tunnel**
    ```bash
@@ -96,7 +60,7 @@ This guide walks you through testing Slice 2 functionality locally with real Ter
    # Should return: {"status":"ok"}
    ```
 
-## Step 4: Update TFC Run Task URL
+## Step 3: Update TFC Run Task URL
 
 1. **Go to TFC Workspace Settings**
    ```
@@ -110,7 +74,7 @@ This guide walks you through testing Slice 2 functionality locally with real Ter
    - Keep "Enforcement Level" as "Advisory"
    - Click "Update run task"
 
-## Step 5: Trigger a Test Run
+## Step 4: Trigger a Test Run
 
 ### Option A: Create a New PR (Recommended)
 
@@ -158,7 +122,7 @@ This guide walks you through testing Slice 2 functionality locally with real Ter
    - Reason: "Testing Slice 2 data fetching"
    - Click "Start run"
 
-## Step 6: Watch the Logs
+## Step 5: Watch the Logs
 
 ### Terminal 1 (Webhook logs)
 
@@ -206,7 +170,7 @@ INFO:terraform_intentions.app:Run is not associated with a PR (is_speculative=Fa
 INFO:terraform_intentions.app:Posted run-task result status=passed
 ```
 
-## Step 7: Verify in TFC UI
+## Step 6: Verify in TFC UI
 
 1. **Go to the run in TFC**
    ```
