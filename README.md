@@ -4,6 +4,12 @@ A post-plan [HCP Terraform / Terraform Cloud](https://developer.hashicorp.com/te
 run task that checks whether a Terraform plan matches what its pull request says it will do — and
 flags it when the plan and the PR's stated intent don't line up.
 
+> [!NOTE]
+> **This is a learning project, not a reference implementation.** It exists to explore building
+> with AI — Claude Code, Skills, and LangChain — and much of it was written that way. Treat the
+> code as illustrative, **not** as a model of Python best practice or production-grade design.
+> Don't copy patterns from here expecting them to be idiomatic or hardened.
+
 ## The problem
 
 A PR says "add an S3 bucket," but the plan it produces also stands up an RDS instance, an IAM
