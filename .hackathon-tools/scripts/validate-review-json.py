@@ -28,7 +28,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        import jsonschema
+        import jsonschema  # pylint: disable=import-outside-toplevel
     except ImportError:
         print("jsonschema is not installed; run `python -m pip install jsonschema`.", file=sys.stderr)
         return 2

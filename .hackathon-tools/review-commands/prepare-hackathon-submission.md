@@ -123,7 +123,15 @@ If no, capture `repo_access.organizers_can_access = false` and require `repo_acc
 
 Generate `repo-summary.json` and `changed-files.txt` with `scripts/generate-repo-summary.py` when available. The command may be run repeatedly; it rewrites both outputs from the current repo state.
 
-Example:
+### Determining Base Ref
+
+When calling the script, choose the appropriate base ref strategy:
+
+1. **If the team has a clear starting point** (e.g., they branched from `main` or `develop`): Use `--base-ref <branch-name>` to show only hackathon changes.
+2. **If uncertain or the team worked directly on main**: Omit `--base-ref` to list all tracked files. The script will fall back to listing all files if the diff is empty.
+3. **Common base refs**: `main`, `master`, `develop`, or a specific tag/commit before hackathon work began.
+
+Example with base ref:
 
 ```bash
 scripts/generate-repo-summary.py \
@@ -132,6 +140,18 @@ scripts/generate-repo-summary.py \
   --changed-files-out .hackathon/changed-files.txt \
   --base-ref main \
   --head-ref HEAD \
+  --primary-path README.md \
+  --primary-path reports/example-output.md \
+  --verification-command "go test ./..."
+```
+
+Example without base ref (lists all files):
+
+```bash
+scripts/generate-repo-summary.py \
+  --repo . \
+  --out .hackathon/repo-summary.json \
+  --changed-files-out .hackathon/changed-files.txt \
   --primary-path README.md \
   --primary-path reports/example-output.md \
   --verification-command "go test ./..."
